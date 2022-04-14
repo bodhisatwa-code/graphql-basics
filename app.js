@@ -11,6 +11,7 @@ const {
 } = require("graphql");
 
 const {authors,books} = require('./dummy_data');
+const pubsub = require('./pubsub');
 
 const AuthorType = new GraphQLObjectType({
     name : "Author",
@@ -54,6 +55,7 @@ const RootQueryType = new GraphQLObjectType({
                 id : {type : GraphQLInt}
             },
             resolve : (parent,args) => {
+                pubsub.publish('EVENT_CREATED',{eventCreated:books.find(_b=>_b.id === args.id)})
                 return books.find(_b=>_b.id === args.id)
             }
         },
@@ -117,11 +119,26 @@ const RootMutationQuery = new GraphQLObjectType({
     })
 })
 
+
+
+const EventType = new GraphQLObjectType({
+    name : "Event",
+    description : "An subscription event",
+    fields : ()=>({
+        name : {type : new GraphQLNonNull(GraphQLString)},
+        about : {type : new GraphQLNonNull(GraphQLString)}
+    })
+
+})
+
 const RootSubscriptionQuery = new GraphQLObjectType({
     name : "Subscription",
     description : "Root subscription",
     fields : ()=>({
-        
+        eventCreated : {
+            type : EventType,
+            subscribe : ()=> pubsub.asyncIterator('EVENT_CREATED')
+        }
     })
 })
 
@@ -137,6 +154,8 @@ app.use("/graphql",expressGraphQL({
     graphiql : true,
     schema,
 }))
+
+
 
 app.listen(5000 , ()=>{
     console.log("server running at port 5000");
